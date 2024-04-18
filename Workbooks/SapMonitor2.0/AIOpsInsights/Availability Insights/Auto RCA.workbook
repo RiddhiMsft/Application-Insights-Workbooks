@@ -143,63 +143,6 @@
             "defaultValue": "value::all"
           },
           {
-            "id": "3c1299c9-2fdb-4d25-98ff-f7c84381057f",
-            "version": "KqlParameterItem/1.0",
-            "name": "TimeRange",
-            "type": 4,
-            "isHiddenWhenLocked": true,
-            "typeSettings": {
-              "selectableValues": [
-                {
-                  "durationMs": 300000
-                },
-                {
-                  "durationMs": 900000
-                },
-                {
-                  "durationMs": 1800000
-                },
-                {
-                  "durationMs": 3600000
-                },
-                {
-                  "durationMs": 14400000
-                },
-                {
-                  "durationMs": 43200000
-                },
-                {
-                  "durationMs": 86400000
-                },
-                {
-                  "durationMs": 172800000
-                },
-                {
-                  "durationMs": 259200000
-                },
-                {
-                  "durationMs": 604800000
-                },
-                {
-                  "durationMs": 1209600000
-                },
-                {
-                  "durationMs": 2419200000
-                },
-                {
-                  "durationMs": 2592000000
-                },
-                {
-                  "durationMs": 5184000000
-                },
-                {
-                  "durationMs": 7776000000
-                }
-              ],
-              "allowCustom": true
-            }
-          },
-          {
             "id": "74f08427-265d-4db2-a6d9-82318f892762",
             "version": "KqlParameterItem/1.0",
             "name": "AlertName",
@@ -385,6 +328,56 @@
             "defaultValue": "value::all",
             "queryType": 0,
             "resourceType": "microsoft.operationalinsights/workspaces"
+          },
+          {
+            "id": "20a4a965-253b-43f9-82c7-fffdce7069ef",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "type": 4,
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 300000
+                },
+                {
+                  "durationMs": 900000
+                },
+                {
+                  "durationMs": 1800000
+                },
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 14400000
+                },
+                {
+                  "durationMs": 43200000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 172800000
+                },
+                {
+                  "durationMs": 259200000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 1209600000
+                },
+                {
+                  "durationMs": 2419200000
+                },
+                {
+                  "durationMs": 2592000000
+                }
+              ],
+              "allowCustom": true
+            }
           }
         ],
         "style": "pills",
@@ -534,6 +527,7 @@
         "version": "KqlItem/1.0",
         "query": "let startTime = todatetime(\"{StartTime}\");\r\nlet endTime = todatetime(\"{EndTime}\");\r\nlet vmList = split(\"{selVmName}\",\",\");\r\nlet binSize=tolong(\"{MinutesBin}\")*1m;\r\nlet hundredBin=datetime_diff(\"minute\", endTime, startTime);\r\n\r\nlet ParentAvailTable=SapNetweaver_GetProcessList_CL\r\n| where serverTimestamp_t between (startTime .. endTime) and SID_s =~ \"{SID}\" and \"{selProvider}\" contains PROVIDER_INSTANCE_s\r\n| where array_length(vmList) == 0 or vmList has hostname_s\r\n| project description_s, SID_s, hostname_s, dispstatus_s, serverTimestamp_t, ApplicationServer=strcat(hostname_s, \"_\", iff(toint(instanceNr_d)<10, strcat(\"0\", toint(instanceNr_d)), tostring(toint(instanceNr_d))));\r\n\r\nParentAvailTable\r\n| make-series AvailabilityTrend=iff(count() > 0, round(toreal(countif(dispstatus_s == 'SAPControl-GREEN')) / toreal(count()) * 100, 1), real(null)) default=real(null) on serverTimestamp_t step binSize  by SID_s, hostname_s, description_s, ApplicationServer\r\n| project Availability=toreal(series_stats_dynamic(series_fill_const(AvailabilityTrend, 0.0)).avg), SID_s, hostname_s, description_s, ApplicationServer \r\n| join kind=inner (\r\n    ParentAvailTable\r\n        | make-series AvailabilityTrend=iff(count() > 0, round(toreal(countif(dispstatus_s == 'SAPControl-GREEN')) / toreal(count()) * 100, 1), real(null)) default=real(null) on serverTimestamp_t step iff(hundredBin<100, 1m, hundredBin/100*1m) by SID_s, hostname_s, description_s\r\n        | project AvailabilityTrend=series_fill_const(AvailabilityTrend, 0.0), SID_s, hostname_s, description_s\r\n) on hostname_s, description_s, SID_s\r\n| where array_length(vmList) == 0 or vmList has hostname_s\r\n| project description_s, SID_s, ApplicationServer, hostname_s, Availability, AvailabilityTrend\r\n| extend Action=\"View\", Action2=\"View\", SAPComponent='SAP NetWeaver'",
         "size": 3,
+        "timeContextFromParameter": "TimeRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
         "crossComponentResources": [
@@ -2032,10 +2026,6 @@
                     ],
                     "showDefault": false
                   },
-                  "timeContext": {
-                    "durationMs": 0
-                  },
-                  "timeContextFromParameter": "TimeRange",
                   "defaultValue": "value::all",
                   "queryType": 0,
                   "resourceType": "microsoft.operationalinsights/workspaces"
@@ -2066,110 +2056,131 @@
             "name": "vmInsightParams"
           },
           {
-            "type": 1,
+            "type": 12,
             "content": {
-              "json": "No data available for the selected VM(s).",
-              "style": "info"
-            },
-            "conditionalVisibilities": [
-              {
-                "parameterName": "vmIdsExist",
-                "comparison": "isNotEqualTo",
-                "value": "true"
-              }
-            ],
-            "name": "nodata-message"
-          },
-          {
-            "type": 10,
-            "content": {
-              "chartId": "workbook109e8457-0ebd-41b2-ab4a-be21f9b89323",
-              "version": "MetricsItem/2.0",
-              "size": 1,
-              "chartType": 2,
-              "resourceType": "microsoft.compute/virtualmachines",
-              "metricScope": 0,
-              "resourceParameter": "VM2",
-              "resourceIds": [
-                "{VM2}"
-              ],
-              "timeContextFromParameter": "TimeRange",
-              "timeContext": {
-                "durationMs": 3600000
-              },
-              "timeGrain": "PT5M",
-              "metrics": [
-                {
-                  "namespace": "microsoft.compute/virtualmachines",
-                  "metric": "microsoft.compute/virtualmachines--VmAvailabilityMetric",
-                  "aggregation": 4,
-                  "splitBy": null,
-                  "columnName": "VM availability"
-                }
-              ],
+              "version": "NotebookGroup/1.0",
+              "groupType": "editable",
               "title": "VM availability ({TimeRange:label})",
-              "gridSettings": {
-                "rowLimit": 10000
-              }
-            },
-            "conditionalVisibilities": [
-              {
-                "parameterName": "IsFixedGranularity",
-                "comparison": "isEqualTo",
-                "value": "true"
-              },
-              {
-                "parameterName": "vmIdsExist",
-                "comparison": "isEqualTo",
-                "value": "true"
-              }
-            ],
-            "name": "vmAvailabilityMetric"
-          },
-          {
-            "type": 10,
-            "content": {
-              "chartId": "workbook109e8457-0ebd-41b2-ab4a-be21f9b89323",
-              "version": "MetricsItem/2.0",
-              "size": 1,
-              "chartType": 2,
-              "resourceType": "microsoft.compute/virtualmachines",
-              "metricScope": 0,
-              "resourceParameter": "VM2",
-              "resourceIds": [
-                "{VM2}"
-              ],
-              "timeContextFromParameter": "TimeRange",
-              "timeContext": {
-                "durationMs": 3600000
-              },
-              "metrics": [
+              "items": [
                 {
-                  "namespace": "microsoft.compute/virtualmachines",
-                  "metric": "microsoft.compute/virtualmachines--VmAvailabilityMetric",
-                  "aggregation": 4,
-                  "splitBy": null,
-                  "columnName": "VM availability"
+                  "type": 12,
+                  "content": {
+                    "version": "NotebookGroup/1.0",
+                    "groupType": "editable",
+                    "items": [
+                      {
+                        "type": 10,
+                        "content": {
+                          "chartId": "workbook109e8457-0ebd-41b2-ab4a-be21f9b89323",
+                          "version": "MetricsItem/2.0",
+                          "size": 1,
+                          "chartType": 2,
+                          "resourceType": "microsoft.compute/virtualmachines",
+                          "metricScope": 0,
+                          "resourceParameter": "VM2",
+                          "resourceIds": [
+                            "{VM2}"
+                          ],
+                          "timeContextFromParameter": "TimeRange",
+                          "timeContext": {
+                            "durationMs": 0
+                          },
+                          "timeGrain": "PT5M",
+                          "metrics": [
+                            {
+                              "namespace": "microsoft.compute/virtualmachines",
+                              "metric": "microsoft.compute/virtualmachines--VmAvailabilityMetric",
+                              "aggregation": 4,
+                              "columnName": "VM availability"
+                            }
+                          ],
+                          "gridSettings": {
+                            "rowLimit": 10000
+                          }
+                        },
+                        "conditionalVisibilities": [
+                          {
+                            "parameterName": "IsFixedGranularity",
+                            "comparison": "isEqualTo",
+                            "value": "true"
+                          },
+                          {
+                            "parameterName": "vmIdsExist",
+                            "comparison": "isEqualTo",
+                            "value": "true"
+                          }
+                        ],
+                        "name": "vmAvailabilityMetric"
+                      },
+                      {
+                        "type": 10,
+                        "content": {
+                          "chartId": "workbook109e8457-0ebd-41b2-ab4a-be21f9b89323",
+                          "version": "MetricsItem/2.0",
+                          "size": 1,
+                          "chartType": 2,
+                          "resourceType": "microsoft.compute/virtualmachines",
+                          "metricScope": 0,
+                          "resourceParameter": "VM2",
+                          "resourceIds": [
+                            "{VM2}"
+                          ],
+                          "timeContextFromParameter": "TimeRange",
+                          "timeContext": {
+                            "durationMs": 0
+                          },
+                          "metrics": [
+                            {
+                              "namespace": "microsoft.compute/virtualmachines",
+                              "metric": "microsoft.compute/virtualmachines--VmAvailabilityMetric",
+                              "aggregation": 4,
+                              "columnName": "VM availability"
+                            }
+                          ],
+                          "gridSettings": {
+                            "rowLimit": 10000
+                          }
+                        },
+                        "conditionalVisibilities": [
+                          {
+                            "parameterName": "IsFixedGranularity",
+                            "comparison": "isEqualTo",
+                            "value": "false"
+                          },
+                          {
+                            "parameterName": "vmIdsExist",
+                            "comparison": "isEqualTo",
+                            "value": "true"
+                          }
+                        ],
+                        "name": "vmAvailabilityMetric - Auto Granularity"
+                      }
+                    ]
+                  },
+                  "conditionalVisibility": {
+                    "parameterName": "VM2",
+                    "comparison": "isNotEqualTo"
+                  },
+                  "name": "Platform availability metric"
+                },
+                {
+                  "type": 1,
+                  "content": {
+                    "json": "No data available for the selected VM(s).",
+                    "style": "info"
+                  },
+                  "conditionalVisibility": {
+                    "parameterName": "VM2",
+                    "comparison": "isEqualTo"
+                  },
+                  "name": "nodata-message",
+                  "styleSettings": {
+                    "padding": "10px 0px 0px 10px"
+                  }
                 }
-              ],
-              "title": "VM availability ({TimeRange:label})",
-              "gridSettings": {
-                "rowLimit": 10000
-              }
+              ]
             },
-            "conditionalVisibilities": [
-              {
-                "parameterName": "IsFixedGranularity",
-                "comparison": "isEqualTo",
-                "value": "false"
-              },
-              {
-                "parameterName": "vmIdsExist",
-                "comparison": "isEqualTo",
-                "value": "true"
-              }
-            ],
-            "name": "vmAvailabilityMetric - Auto Granularity"
+            "name": "VMAvailability-Group"
           },
           {
             "type": 12,
